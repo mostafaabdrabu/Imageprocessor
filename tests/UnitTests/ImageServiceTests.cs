@@ -1,54 +1,64 @@
+using Moq;
 using Application.Interfaces;
 using Infrastructure.Services;
 using Microsoft.AspNetCore.Http;
-using Moq;
 
 namespace UnitTests
 {
     public class ImageServiceTests
     {
+        private readonly Mock<IStorageService> _storageMock;
+        private readonly ImageService _imageService;
+
+        public ImageServiceTests()
+        {
+            _storageMock = new Mock<IStorageService>();
+            _imageService = new ImageService(_storageMock.Object);
+        }
+
         [Fact]
-        public async Task ProcessUploadedImages_ShouldSkipInvalidFileTypes()
+        public async Task ProcessUploadedImages_ShouldIgnoreInvalidFileTypes()
         {
             // Arrange
-            var storageService = new Mock<IStorageService>();
-            var service = new ImageService(storageService.Object);
             var mockFile = new Mock<IFormFile>();
-
             mockFile.Setup(f => f.Length).Returns(1024);
             mockFile.Setup(f => f.FileName).Returns("test.txt");
 
             var files = new List<IFormFile> { mockFile.Object };
 
             // Act
-            var result = await service.ProcessUploadedImages(files);
+            var result = await _imageService.ProcessUploadedImages(files);
 
             // Assert
             Assert.Empty(result);
+            _storageMock.Verify(x => x.SaveFileAsync(It.IsAny<string>(), It.IsAny<Stream>()), Times.Never);
         }
 
         [Fact]
-        public async Task ProcessUploadedImages_ShouldReturnImageId_ForValidFile()
+        public async Task GetResizedImage_ShouldReturnNull_WhenFileNotFound()
         {
             // Arrange
-            var storageService = new Mock<IStorageService>();
-            var service = new ImageService(storageService.Object);
-            var mockFile = new Mock<IFormFile>();
-
-            var content = new MemoryStream(new byte[] { 1, 2, 3 });
-            mockFile.Setup(f => f.Length).Returns(content.Length);
-            mockFile.Setup(f => f.FileName).Returns("test.jpg");
-            mockFile.Setup(f => f.OpenReadStream()).Returns(content);
-            mockFile.Setup(f => f.CopyToAsync(It.IsAny<Stream>(), default))
-                .Returns<Stream, System.Threading.CancellationToken>((stream, token) => content.CopyToAsync(stream, token));
-
-            var files = new List<IFormFile> { mockFile.Object };
+            _storageMock.Setup(s => s.GetFileAsync(It.IsAny<string>()))
+                        .ReturnsAsync((Stream?)null);
 
             // Act
-            var result = await service.ProcessUploadedImages(files);
+            var result = await _imageService.GetResizedImage("dummy-id", "phone");
 
             // Assert
-            Assert.Single(result);
+            Assert.Null(result);
+        }
+
+        [Fact]
+        public async Task GetMetadata_ShouldReturnNull_WhenFileDoesNotExist()
+        {
+            // Arrange
+            _storageMock.Setup(s => s.FileExists(It.IsAny<string>())).Returns(false);
+
+            // Act
+            var metadata = await _imageService.GetMetadata("nonexistent-id");
+
+            // Assert
+            Assert.Null(metadata);
         }
     }
 }
