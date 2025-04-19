@@ -1,15 +1,16 @@
-﻿using Application.Interfaces;
+﻿using Domain.Constants;
+using Application.Interfaces;
 
 namespace Infrastructure.Services
 {
     public class FileSystemStorageService : IStorageService
     {
-        private readonly string _basePath = Path.Combine(Directory.GetCurrentDirectory(), "Storage");
+        private readonly string _basePath = Path.Combine(Directory.GetCurrentDirectory(), FileSystemFolders.Base);
         public FileSystemStorageService() 
         {
-            Directory.CreateDirectory(Path.Combine(_basePath, "Original"));
-            Directory.CreateDirectory(Path.Combine(_basePath, "Resized"));
-            Directory.CreateDirectory(Path.Combine(_basePath, "Metadata"));
+            Directory.CreateDirectory(Path.Combine(_basePath, FileSystemFolders.Original));
+            Directory.CreateDirectory(Path.Combine(_basePath, FileSystemFolders.Resized));
+            Directory.CreateDirectory(Path.Combine(_basePath, FileSystemFolders.Metadata));
         }
         public async Task SaveFileAsync(string path, Stream content)
         {
